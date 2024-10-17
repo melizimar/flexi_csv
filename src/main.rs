@@ -1,6 +1,9 @@
 mod args;
 
 use args::FlexiCsvArgs;
+use clap::Parser;
+
 fn main() {
-    println!("Hello, world!");
+    let args = FlexiCsvArgs::parse();
+    println!("{:#?}", args);
 }
