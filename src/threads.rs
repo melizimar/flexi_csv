@@ -3,6 +3,6 @@ pub fn get_num_threads() -> usize {
 
     match num_threads {
         Ok(value) => value.get(),
-        Err(_) => 1
+        Err(_) => 1,
     }
 }
