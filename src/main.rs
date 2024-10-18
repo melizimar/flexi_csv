@@ -216,7 +216,110 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     if let args::OperationsTypes::Transform(args) = arguments.operations_types.clone() {
         // Fluxo para TransformCommand
-        println!("Executando TransformCommand no arquivo {:#?}", args);
+        // Abre o arquivo
+        let metadata = std::fs::metadata(args.input_file.clone())?;
+
+        let progress_bar = ProgressBar::new(metadata.len() as u64);
+        progress_bar.set_style(
+        ProgressStyle::default_bar()
+            .template(
+                "Processando arquivo...{pos}/{len}\n[{elapsed_precise}] [{wide_bar}] ({percent}%)",
+            )
+            .unwrap(),
+        );
+
+        let mut lazy_df = LazyCsvReader::new(args.input_file)
+            .with_has_header(true)
+            .with_separator(b';')
+            .with_truncate_ragged_lines(true)
+            .with_ignore_errors(true) // Ignora erros de parsing
+            //.with_skip_rows_after_header(self.skip_rows)
+            //.with_n_rows(Some(self.chunk_size))
+            .finish()?;
+
+        let mut transformations: HashMap<String, Vec<String>> = HashMap::new();
+
+        if let Some(vec) = &args.to_uppercase {
+            transformations.insert("to_uppercase".to_string(), vec.clone());
+        }
+        if let Some(vec) = &args.to_lowercase {
+            transformations.insert("to_lowercase".to_string(), vec.clone());
+        }
+        if let Some(vec) = &args.to_normalized {
+            transformations.insert("to_normalized".to_string(), vec.clone());
+        }
+        if let Some(vec) = &args.to_titlecase {
+            transformations.insert("to_titlecase".to_string(), vec.clone());
+        }
+
+        for (key, columns) in transformations.clone() {
+            if key == *"to_uppercase" {
+                for column in &columns {
+                    let uppercase_column = lazy_df
+                        .with_column(col(column).str().to_uppercase());
+                    lazy_df = uppercase_column;
+                }
+            }
+            if key == *"to_lowercase" {
+                for column in &columns {
+                    let lowercase_column = lazy_df
+                        .lazy() // Usa lazy execution
+                        .with_column(col(column).str().to_lowercase());
+                    lazy_df = lowercase_column;
+                }
+            }
+            
+        //     if key == *"to_normalized" {
+        //         for column in &columns {
+        //             let col_series = lazy_df.column(column)?.str()?;
+        //             // Remova acentos de cada valor na série
+
+        //             let no_accents: Vec<Option<String>> = col_series
+        //                 .into_iter()
+        //                 .map(|opt_s| opt_s.map(deunicode)) // Remove acentos
+        //                 .collect();
+
+        //             // Cria uma nova série com os valores sem acentos
+        //             let new_series = Series::new(column.into(), no_accents);
+
+        //             // Substitui a coluna antiga pela nova no DataFrame
+        //             lazy_df.replace(column, new_series)?;
+        //         }
+        //     }
+        //     if key == *"to_titlecase" {
+        //         for column in &columns {
+        //             let col_series = df.column(column)?.str()?;
+
+        //             // Remova acentos de cada valor na série
+        //             let no_accents: Vec<Option<String>> = col_series
+        //                 .into_iter()
+        //                 .map(|opt_s| opt_s.map(to_title_case)) // Remove acentos
+        //                 .collect();
+
+        //             // Cria uma nova série com os valores sem acentos
+        //             let new_series = Series::new(column.into(), no_accents);
+
+        //             // Substitui a coluna antiga pela nova no DataFrame
+        //             df.replace(column, new_series)?;
+        //         }
+        //     }
+         }
+
+         let mut df = lazy_df.clone().collect()?;
+        
+         let mut file = File::create("./input/test.csv").unwrap();
+
+         // Gravar o DataFrame no arquivo
+         CsvWriter::new(&mut file)
+             .include_header(true)
+             .with_separator(args.delimiter as u8)
+             .finish(&mut df)
+             .unwrap();
+        
+        for i in 1..metadata.len(){
+            progress_bar.inc(1);
+        }
+        progress_bar.finish_with_message("Arquivos processado.");
     }
 
     Ok(())
